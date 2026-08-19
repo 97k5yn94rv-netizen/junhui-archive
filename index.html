@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>junhui-아카이브 | 포카 리스트</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff7fb;color:#3b3440;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+header{padding:28px 18px 18px;text-align:center}
+h1{margin:0;font-size:27px}
+.sub{margin-top:7px;color:#a18d9d;font-size:13px}
+.wrap{max-width:760px;margin:auto;padding:0 15px 40px}
+.panel{background:white;border:1px solid #f0dfea;border-radius:20px;padding:16px;margin:12px 0;box-shadow:0 5px 18px #eadce633}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+button,.select{border:1px solid #ead9e5;background:#fff;border-radius:13px;padding:10px 13px;font-size:14px;color:#4a3d47}
+button{cursor:pointer}
+button.active{background:#f3ddec;border-color:#e5bad7}
+input,select{width:100%;border:1px solid #ead9e5;border-radius:13px;padding:12px;font-size:15px;background:#fff}
+label{display:block;font-size:13px;color:#8d7888;margin:10px 0 5px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.card{background:#fff;border:1px solid #f0dfea;border-radius:17px;overflow:hidden;position:relative}
+.card img{width:100%;aspect-ratio:1/1;object-fit:cover;background:#f8edf5}
+.info{padding:11px}
+.name{font-weight:700}
+.meta{font-size:12px;color:#9b8797;margin-top:5px}
+.check{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:#fff;border:1px solid #ead9e5;display:flex;align-items:center;justify-content:center}
+.empty{text-align:center;color:#a18d9d;padding:35px 10px}
+.small{font-size:12px;color:#9b8797}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+@media(min-width:600px){.grid{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<header>
+<h1>🐾 junhui-아카이브</h1>
+<div class="sub">나만의 포카 리스트 ✨</div>
+</header>
+<div class="wrap">
+
+<div class="panel">
+<div class="controls">
+<button id="all" class="active" onclick="filterCards('all',this)">전체</button>
+<button onclick="filterCards('have',this)">소장 🩷</button>
+<button onclick="filterCards('want',this)">미소장 🤍</button>
+<button onclick="selectAll()">전체 선택</button>
+<button onclick="clearSelection()">선택 해제</button>
+</div>
+</div>
+
+<div class="panel">
+<strong>포카 추가하기 📸</strong>
+<label>이름</label>
+<input id="name" placeholder="예: 준휘 FACE YOU">
+<label>앨범 / 버전</label>
+<input id="album" placeholder="예: FACE THE SUN">
+<label>상태</label>
+<select id="status"><option value="have">소장 🩷</option><option value="want">미소장 🤍</option></select>
+<label>사진</label>
+<input id="photo" type="file" accept="image/*">
+<div style="margin-top:12px"><button onclick="addCard()">+ 포카 추가</button></div>
+<div class="small" style="margin-top:8px">※ 사진과 목록은 이 브라우저에 저장돼요. 다른 기기와 자동 공유되지는 않아요.</div>
+</div>
+
+<div class="panel">
+<div class="row">
+<input id="search" placeholder="🔎 포카 검색" oninput="render()">
+<select id="sort" onchange="render()">
+<option value="new">최신순</option>
+<option value="name">이름순</option>
+</select>
+</div>
+</div>
+
+<div id="grid" class="grid"></div>
+<div id="empty" class="empty" style="display:none">아직 포카가 없어!<br>위에서 사진을 추가해줘 🐱💗</div>
+
+</div>
+<script>
+const KEY='junhui-poca-list-v1';
+let cards=JSON.parse(localStorage.getItem(KEY)||'[]');
+let currentFilter='all';
+let selected=new Set();
+
+function save(){localStorage.setItem(KEY,JSON.stringify(cards))}
+function filterCards(f,btn){
+ currentFilter=f;
+ document.querySelectorAll('.controls button').forEach(b=>b.classList.remove('active'));
+ btn.classList.add('active'); render();
+}
+function addCard(){
+ const name=document.getElementById('name').value.trim()||'이름 없는 포카';
+ const album=document.getElementById('album').value.trim()||'앨범 미입력';
+ const status=document.getElementById('status').value;
+ const file=document.getElementById('photo').files[0];
+ if(!file){alert('사진을 먼저 선택해줘! 📸');return}
+ const reader=new FileReader();
+ reader.onload=()=>{
+  cards.unshift({id:Date.now(),name,album,status,img:reader.result});
+  save();
+  document.getElementById('name').value='';
+  document.getElementById('album').value='';
+  document.getElementById('photo').value='';
+  render();
+ };
+ reader.readAsDataURL(file);
+}
+function toggle(id){
+ if(selected.has(id)) selected.delete(id); else selected.add(id);
+ render();
+}
+function selectAll(){
+ visibleCards().forEach(c=>selected.add(c.id)); render();
+}
+function clearSelection(){selected.clear();render()}
+function visibleCards(){
+ const q=document.getElementById('search').value.trim().toLowerCase();
+ let arr=cards.filter(c=>currentFilter==='all'||c.status===currentFilter)
+ .filter(c=>(c.name+' '+c.album).toLowerCase().includes(q));
+ const s=document.getElementById('sort').value;
+ if(s==='name')arr.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+ return arr;
+}
+function deleteCard(id){
+ if(confirm('이 포카를 삭제할까?')){cards=cards.filter(c=>c.id!==id);selected.delete(id);save();render()}
+}
+function render(){
+ const grid=document.getElementById('grid'), empty=document.getElementById('empty');
+ const arr=visibleCards();
+ grid.innerHTML='';
+ arr.forEach(c=>{
+  const el=document.createElement('div');el.className='card';
+  el.innerHTML=`<img src="${c.img}" alt=""><button class="check" onclick="toggle(${c.id})">${selected.has(c.id)?'✓':'○'}</button>
+  <div class="info"><div class="name">${esc(c.name)}</div><div class="meta">${esc(c.album)} · ${c.status==='have'?'소장 🩷':'미소장 🤍'}</div>
+  <button style="margin-top:9px;padding:7px 9px;font-size:12px" onclick="deleteCard(${c.id})">삭제</button></div>`;
+  grid.appendChild(el);
+ });
+ empty.style.display=arr.length?'none':'block';
+}
+function esc(s){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+render();
+</script>
+</body>
+</html>
